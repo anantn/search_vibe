@@ -7,12 +7,15 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
 
     co = search.get_cohere_client()
-    
+
     # Read emails from Gmail
-    input = read_gmail.read_gmail()
+    google_creds = read_gmail.get_google_credentials()
+    input = read_gmail.read_gmail_messages(google_creds)
+
+    input_strings = [f"{message['From']}\n{message['Subject']}\n{message['Body']}" for message in input]
 
     # Generate embeddings for the data set
-    embeddings = search.generate_embeddings(co, input)
+    embeddings = search.generate_embeddings(co, input_strings)
 
     # Create the search index
     search_index = search.create_index(embeddings)
@@ -25,5 +28,5 @@ if __name__ == '__main__':
 
     logging.log(logging.INFO, f'''
         Found {len(result[0])} results for {query}.
-        The results are: {[input[i] for i in result[0]]}
+        The results are: {[input[i]['Subject'] for i in result[0]]}
         ''')

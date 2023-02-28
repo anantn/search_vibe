@@ -16,44 +16,93 @@ from googleapiclient.errors import HttpError
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
 
-def read_gmail() -> list[str]:
-    creds = get_google_credentials()
+def get_message_ids(messages: list[dict]) -> list[str]:
+    return list(map(lambda x: x['id'], messages))
+
+
+def decode_and_strip(encoded_messages: list[str]) -> list[str]:
+    cleaned_messages = []
+    for encoded_message in encoded_messages:
+        # decode base64
+        decoded_message = base64.urlsafe_b64decode(
+            encoded_message.encode('ASCII'))
+
+        # Parse HTML and return only the text
+        soup = BeautifulSoup(decoded_message, 'html.parser')
+        parsed_message = soup.get_text()
+
+        # Remove extra spaces
+        cleaned_message = ' '.join(parsed_message.split())
+
+        cleaned_messages.append(cleaned_message)
+    return cleaned_messages
+
+# Extract the text content of the email.
+def get_message_body(message: dict) -> str:
+    # The email may have a direct message body.
+    body = []
+    if message['payload']['body'].get('data') is not None:
+        body.append(message['payload']['body'].get('data'))
+    # Or it may have a message body in parts.
+
+    parts = []
+    parts = message['payload'].get('parts')
+    while parts is not None and len(parts) > 0:
+        current_part = parts[0]
+        if current_part['body'].get('data') is not None:
+            body.append(current_part['body'].get('data'))
+        parts.pop(0)
+        if current_part.get('parts') is not None:
+            parts.extend(current_part['parts'])
+
+    return " ".join(decode_and_strip(body))
+
+
+def extract_from(message: dict) -> str:
+    for each in message['payload']['headers']:
+        if each['name'] == 'From':
+            return each['value']
+
+
+def extract_subject(message: dict) -> str:
+    for each in message['payload']['headers']:
+        if each['name'] == 'Subject':
+            return each['value']
+
+
+def read_gmail_messages(creds: Credentials) -> list[dict]:
     try:
         # Call the Gmail API
         service = build('gmail', 'v1', credentials=creds)
-        results = service.users().messages().list(userId='me').execute()
+        results = service.users().messages().list(userId='me', maxResults = 100).execute()
         messages = results.get('messages', [])
 
         if not messages:
-            print('No messages found.')
+            logging.log(logging.ERROR, 'No messages found.')
             return
         logging.log(logging.INFO, f'Found {len(messages)} messages.')
 
+        message_ids = get_message_ids(messages)
+
         formatted_messages = []
-        for each in messages:
-            id = each['id']
+        for id in message_ids:
             message = service.users().messages().get(
                 userId='me', id=id, format='full').execute()
-            if message['payload']['body']['size'] > 0:
-                # decode base64
-                encoded_message = message['payload']['body']['data']
-                decoded_message = base64.urlsafe_b64decode(
-                    encoded_message.encode('ASCII'))
 
-                # Parse HTML and return only the text
-                soup = BeautifulSoup(decoded_message, 'html.parser')
-                body = soup.get_text()
+            formatted_messages.append(
+                {"From": extract_from(message),
+                 "Subject": extract_subject(message),
+                 "Body": get_message_body(message)})
 
-                # Remove extra spaces
-                body = ' '.join(body.split())
-                formatted_messages.append(body)
-                logging.log(logging.INFO, f'Added message {id} to formatted_messages.')
+            logging.log(
+                logging.INFO, f'Added message {id} to formatted_messages.')
 
         return formatted_messages
 
     except HttpError as error:
         # TODO(developer) - Handle errors from gmail API.
         print(f'An error occurred: {error}')
+
 
 def get_google_credentials() -> Credentials:
     creds = None
