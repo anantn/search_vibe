@@ -1,5 +1,6 @@
 from __future__ import print_function
 import base64
+import logging
 
 import os.path
 import sys
@@ -26,7 +27,7 @@ def read_gmail() -> list[str]:
         if not messages:
             print('No messages found.')
             return
-        print('Found {} messages:'.format(len(messages)))
+        logging.log(logging.INFO, f'Found {len(messages)} messages.')
 
         formatted_messages = []
         for each in messages:
@@ -38,7 +39,6 @@ def read_gmail() -> list[str]:
                 encoded_message = message['payload']['body']['data']
                 decoded_message = base64.urlsafe_b64decode(
                     encoded_message.encode('ASCII'))
-                print(decoded_message.decode('utf-8'))
 
                 # Parse HTML and return only the text
                 soup = BeautifulSoup(decoded_message, 'html.parser')
@@ -47,6 +47,7 @@ def read_gmail() -> list[str]:
                 # Remove extra spaces
                 body = ' '.join(body.split())
                 formatted_messages.append(body)
+                logging.log(logging.INFO, f'Added message {id} to formatted_messages.')
 
         return formatted_messages
 
