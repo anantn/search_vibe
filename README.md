@@ -13,11 +13,11 @@ This project takes in a search query and returns a list of relevant documents fr
 
 From a terminal
 
-> $python3 main_search_embeddings.py
+> $python3 main_search_embeddings.py --query="Do I have a github account?"
 
 This will open a browser window where you log in with your google.com credentials and allow access to this application to read your email. The script will download 100 email messages from your inbox and use that to generate embedding vectors and a search index.
 
-The script will then run a search query over your email and print out the top search results.
+The script will then run the given search query over your email and print out the top search results.
 
 ## Question Answering on email messages
 
