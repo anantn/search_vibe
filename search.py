@@ -1,4 +1,5 @@
 import logging
+import pickle
 import cohere
 import numpy as np
 import re
@@ -11,6 +12,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 from annoy import AnnoyIndex
 import warnings
 import read_gmail
+
+INDEX_FILE_NAME = 'search_index.ann'
+INDEX_PARAMS_FILE_NAME = 'search_index_params.pickle'
 
 def get_cohere_client() -> cohere.Client:
     # Create a new Cohere client
@@ -35,9 +39,23 @@ def create_index(embeddings: np.array) -> AnnoyIndex:
         search_index.add_item(i, embeddings[i])
 
     search_index.build(10) # 10 trees
-    search_index.save('test.ann')
+    search_index.save(INDEX_FILE_NAME)
+
+    # save index parameters in a pickle file
+    with open(INDEX_PARAMS_FILE_NAME, 'wb') as f:
+        pickle.dump([embeddings.shape[1], 'angular'], f)
+    
     logging.log(logging.INFO, f'Created search index with {len(embeddings)} items.')
     return search_index
+
+def load_index() -> AnnoyIndex:
+    # load index parameters from a pickle file
+    with open(INDEX_PARAMS_FILE_NAME, 'rb') as f:
+        params = pickle.load(f)
+    
+        search_index = AnnoyIndex(params[0], params[1])
+        search_index.load(INDEX_FILE_NAME)
+        return search_index
 
 def search(input: str, search_index: AnnoyIndex, co: cohere.Client) -> tuple[list[int], list[float]]:
     # Generate embeddings for the input
