@@ -14,6 +14,7 @@ if __name__ == '__main__':
     parser.add_argument('--save_index', type=bool, required=False, default=True)
     parser.add_argument('--load_emails', type=bool, required=False, default=False)
     parser.add_argument('--load_index', type=bool, required=False, default=False)
+    parser.add_argument('--query', type=str, required=False, default="Do I have a github account?")
     args = parser.parse_args()
 
     co = search.get_cohere_client()
@@ -41,14 +42,12 @@ if __name__ == '__main__':
         # Create the search index
         search_index = search.create_index(embeddings)
 
-    # Get the search query from the user
-    query = "Do I have a github account?"
 
     # Search for the query
-    result = search.search(query, search_index, co)
+    result = search.search(args.query, search_index, co)
 
     logging.log(logging.INFO, f'''
-        Found {len(result[0])} results for {query}.''')
+        Found {len(result[0])} results for {args.query}.''')
 
     logging.log(logging.INFO, f'''
         The results are: {[input[i]['Subject'] for i in result[0]]}

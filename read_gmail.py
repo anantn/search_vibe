@@ -78,9 +78,9 @@ def read_gmail_messages(creds: Credentials) -> list[dict]:
         messages = results.get('messages', [])
 
         if not messages:
-            logging.log(logging.ERROR, 'No messages found.')
+            logging.log(logging.ERROR, 'No email messages found.')
             return
-        logging.log(logging.INFO, f'Found {len(messages)} messages.')
+        logging.log(logging.INFO, f'Retrieved {len(messages)} email messages.')
 
         message_ids = get_message_ids(messages)
 
@@ -95,7 +95,7 @@ def read_gmail_messages(creds: Credentials) -> list[dict]:
                  "Body": get_message_body(message)})
 
             logging.log(
-                logging.INFO, f'Added message {id} to formatted_messages.')
+                logging.INFO, f'Read and parsed message {id} from your email account.')
 
         return formatted_messages
 
