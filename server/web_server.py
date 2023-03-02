@@ -1,8 +1,15 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
+import json
 import logging
 from urllib.parse import urlparse, parse_qs
+from search_embeddings import SearchEmbeddings
 
 class StatusHandler(BaseHTTPRequestHandler):
+
+    def __init__(self, *args, **kwargs):
+        self.embeddings = SearchEmbeddings()
+        super().__init__(*args, **kwargs)
+
     def do_GET(self):
         parsed_url = urlparse(self.path)
 
@@ -18,15 +25,15 @@ class StatusHandler(BaseHTTPRequestHandler):
             query = query_params.get('query', [''])[0]
             limit = int(query_params.get('limit', ['10'])[0])
 
-            # TODO: implement search logic using query and limit parameters
-            results = ["result1", "result2", "result3"]
+            # TODO: implement search logic using limit parameters
+            results = self.embeddings.search(query)
 
             self.send_response(200)
             self.send_header('Content-type', 'text/plain')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
 
-            message = ",".join(results)
+            message = json.dumps(results)
             self.wfile.write(message.encode())
         else:
             self.send_error(404)

@@ -32,7 +32,7 @@ class App extends React.Component {
   handleResults(results) {
     var items = []
 
-    results.split(',').forEach((result, i) => {
+    results.forEach((result, i) => {
       const newItem = {
         text: result,
         id: i
