@@ -5,9 +5,11 @@ from urllib.parse import urlparse, parse_qs
 class StatusHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed_url = urlparse(self.path)
+
         if parsed_url.path == '/status':
             self.send_response(200)
             self.send_header('Content-type', 'text/plain')
+            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             message = "Server is running!"
             self.wfile.write(message.encode())
@@ -17,13 +19,14 @@ class StatusHandler(BaseHTTPRequestHandler):
             limit = int(query_params.get('limit', ['10'])[0])
 
             # TODO: implement search logic using query and limit parameters
-            results = ["result1", "result2"]
+            results = ["result1", "result2", "result3"]
 
             self.send_response(200)
             self.send_header('Content-type', 'text/plain')
+            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
 
-            message = "Search results: " + ", ".join(results)
+            message = ",".join(results)
             self.wfile.write(message.encode())
         else:
             self.send_error(404)
