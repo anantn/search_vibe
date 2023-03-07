@@ -1,6 +1,8 @@
 from __future__ import print_function
 import base64
 import logging
+import email
+import re
 
 import os.path
 import sys
@@ -20,61 +22,46 @@ def get_message_ids(messages: list[dict]) -> list[str]:
     return list(map(lambda x: x['id'], messages))
 
 
-def decode_and_strip(encoded_messages: list[str]) -> list[str]:
-    cleaned_messages = []
-    for encoded_message in encoded_messages:
-        # decode base64
-        decoded_message = base64.urlsafe_b64decode(
-            encoded_message.encode('ASCII'))
+def body_from_html(html: str) -> str:
+    soup = BeautifulSoup(html, 'html.parser')
+    return soup.get_text()
 
-        # Parse HTML and return only the text
-        soup = BeautifulSoup(decoded_message, 'html.parser')
-        parsed_message = soup.get_text()
+def body_from_plain(plain: str) -> str:
+    decoded = ""
+    try:
+        decoded = plain.decode("utf-8")
+    except UnicodeDecodeError:
+        decoded = plain.decode("latin-1")
+    return decoded
 
-        # Remove extra spaces
-        cleaned_message = ' '.join(parsed_message.split())
+# Extract plain text contents of the email.
+def get_message_body(message: email.message.EmailMessage) -> str:
+    body = ""
+    if message.is_multipart():
+        for part in message.walk():
+            content_type = part.get_content_type()
+            content_disposition = str(part.get('Content-Disposition'))
+            if content_type == 'text/plain' and 'attachment' not in content_disposition:
+                body = body_from_plain(part.get_payload(decode=True))
+            elif content_type == 'text/html' and 'attachment' not in content_disposition:
+                body = body_from_html(part.get_payload(decode=True))
+    else:
+        content_type = message.get_content_type()
+        if content_type == 'text/plain':
+            body = body_from_plain(message.get_payload(decode=True))
+        elif content_type == 'text/html':
+            body = body_from_html(message.get_payload(decode=True))
 
-        cleaned_messages.append(cleaned_message)
-    return cleaned_messages
-
-# Extract the text content of the email.
-def get_message_body(message: dict) -> str:
-    # The email may have a direct message body.
-    body = []
-    if message['payload']['body'].get('data') is not None:
-        body.append(message['payload']['body'].get('data'))
-    # Or it may have a message body in parts.
-
-    parts = []
-    parts = message['payload'].get('parts')
-    while parts is not None and len(parts) > 0:
-        current_part = parts[0]
-        if current_part['body'].get('data') is not None:
-            body.append(current_part['body'].get('data'))
-        parts.pop(0)
-        if current_part.get('parts') is not None:
-            parts.extend(current_part['parts'])
-
-    return " ".join(decode_and_strip(body))
+    # Trim multiple newlines into a single newline.
+    body = re.sub(r'[\r\n][\r\n]{2,}', '\n\n', body)
+    return re.sub(r'[\n]{2,}', '\n', body)
 
 
-def extract_from(message: dict) -> str:
-    for each in message['payload']['headers']:
-        if each['name'] == 'From':
-            return each['value']
-
-
-def extract_subject(message: dict) -> str:
-    for each in message['payload']['headers']:
-        if each['name'] == 'Subject':
-            return each['value']
-
-
-def read_gmail_messages(creds: Credentials) -> list[dict]:
+def read_gmail_messages(creds: Credentials, maxResults: int = 100) -> list[dict]:
     try:
         # Call the Gmail API
         service = build('gmail', 'v1', credentials=creds)
-        results = service.users().messages().list(userId='me', maxResults = 100).execute()
+        results = service.users().messages().list(userId='me', maxResults=maxResults).execute()
         messages = results.get('messages', [])
 
         if not messages:
@@ -87,12 +74,13 @@ def read_gmail_messages(creds: Credentials) -> list[dict]:
         formatted_messages = []
         for id in message_ids:
             message = service.users().messages().get(
-                userId='me', id=id, format='full').execute()
-
+                userId='me', id=id, format='raw').execute()
+            parsed = email.message_from_bytes(base64.urlsafe_b64decode(message['raw']), policy=email.policy.default)
             formatted_messages.append(
-                {"From": extract_from(message),
-                 "Subject": extract_subject(message),
-                 "Body": get_message_body(message)})
+                {"Id": id,
+                 "From": parsed['from'],
+                 "Subject": parsed['subject'],
+                 "Body": get_message_body(parsed)})
 
             logging.log(
                 logging.INFO, f'Read and parsed message {id} from your email account.')
