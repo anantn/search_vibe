@@ -132,6 +132,9 @@ dmypy.json
 credentials.json
 token.json
 emails.pickle
+embeddings.pickle
+openai_token
+cohere_token
 search_index.ann
 search_index_params.pickle
 gmail_messages.txt

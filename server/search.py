@@ -1,3 +1,4 @@
+import os
 import logging
 import pickle
 import cohere
@@ -18,7 +19,7 @@ INDEX_PARAMS_FILE_NAME = 'search_index_params.pickle'
 
 def get_cohere_client() -> cohere.Client:
     # Create a new Cohere client
-    api_key = "7IhVaJPP1Nju2wtvPIvMF53cBWA5sNw5DNleTQKQ"
+    api_key = os.environ['COHERE_API_KEY']
     return cohere.Client(api_key)
 
 def generate_embeddings(co: cohere.Client, input: list[str]) -> np.array:
